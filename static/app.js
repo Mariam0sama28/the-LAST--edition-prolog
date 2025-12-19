@@ -1,6 +1,6 @@
-// static/app.js
-
-document.getElementById("taskForm").addEventListener("submit", async function (e) {
+document
+  .getElementById("taskForm")
+  .addEventListener("submit", async function (e) {
     e.preventDefault();
 
     const name = document.getElementById("name").value.trim();
@@ -9,80 +9,104 @@ document.getElementById("taskForm").addEventListener("submit", async function (e
     const deadline = document.getElementById("deadline").value;
 
     if (name === "") {
-        alert("Write task name first!");
-        return;
+      alert("Please write a task name!");
+      return;
     }
 
     const response = await fetch("/api/tasks", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, priority, duration, deadline }),
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, priority, duration, deadline }),
     });
 
     const data = await response.json();
-    document.getElementById("msg").textContent = data.ok
-        ? "Task added successfully!"
-        : "Error adding task";
+    const msgDiv = document.getElementById("msg");
+
+    if (data.ok) {
+      msgDiv.textContent = "Task added successfully! ";
+      msgDiv.style.color = "#10b981";
+      document.getElementById("taskForm").reset();
+    } else {
+      msgDiv.textContent = "Error adding task!";
+      msgDiv.style.color = "#f43f5e";
+    }
 
     loadTasks();
-});
+  });
 
 async function loadTasks() {
-    const response = await fetch("/api/tasks");
-    const data = await response.json();
-    
-    const tasks = data.tasks || [];
+  const response = await fetch("/api/tasks");
+  const data = await response.json();
+  const tasks = data.tasks || [];
 
-    const list = document.getElementById("tasksList");
-    list.innerHTML = "";
+  const list = document.getElementById("tasksList");
+  list.innerHTML = "";
 
-    tasks.forEach((t, i) => {
-        const li = document.createElement("li");
-        li.innerHTML = `<span>${t.name} <small>(${t.priority}, ${t.duration}h)</small></span>`;
+  tasks.forEach((t, i) => {
+    const li = document.createElement("li");
+    li.className = "task-item";
 
-        const delBtn = document.createElement("button");
-        delBtn.textContent = "X";
-        delBtn.className = "btn danger";
-        delBtn.style.marginLeft = "10px";
-        delBtn.onclick = async () => {
-            await fetch(`/api/tasks/${i}`, { method: "DELETE" });
-            loadTasks();
-        };
-
-        li.appendChild(delBtn);
-        list.appendChild(li);
-    });
+    li.innerHTML = `
+            <div class="task-info">
+                <b>${t.name}</b>
+                <span>${t.duration}h | Deadline: ${t.deadline || "None"}</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:10px">
+                <span class="badge ${t.priority.toLowerCase()}">${
+      t.priority
+    }</span>
+                <button class="del-btn" onclick="deleteTask(${i})" title="Delete">✕</button>
+            </div>
+        `;
+    list.appendChild(li);
+  });
 }
 
-document.getElementById("refreshBtn").addEventListener("click", loadTasks);
+async function deleteTask(index) {
+  if (confirm("Delete this task?")) {
+    await fetch(`/api/tasks/${index}`, { method: "DELETE" });
+    loadTasks();
+  }
+}
 
 document.getElementById("clearBtn").addEventListener("click", async () => {
-    if (confirm("Are you sure you want to delete all tasks?")) {
-        await fetch("/api/tasks", { method: "DELETE" });
-        loadTasks();
-    }
+  if (confirm("Are you sure you want to delete all tasks?")) {
+    await fetch("/api/tasks", { method: "DELETE" });
+    loadTasks();
+    document.getElementById("planCard").style.display = "none";
+  }
 });
 
 document.getElementById("generatePlan").addEventListener("click", async () => {
-    const response = await fetch("/api/plan");
-    const data = await response.json();
-    const plan = data.plan || [];
+  const response = await fetch("/api/plan");
+  const data = await response.json();
+  const plan = data.plan || [];
 
-    const planCard = document.getElementById("planCard");
-    const planList = document.getElementById("planList");
-    planList.innerHTML = "";
+  const planCard = document.getElementById("planCard");
+  const planList = document.getElementById("planList");
 
-    if (plan.length === 0) {
-        planList.innerHTML = "<li>No tasks to plan!</li>";
-    } else {
-        plan.forEach((p) => {
-            const li = document.createElement("li");
-            li.textContent = `${p.name} [${p.priority}] (${p.duration}h) -> Day: ${p.day}`;
-            planList.appendChild(li);
-        });
-    }
+  planCard.style.display = "block";
+  planList.innerHTML = "";
 
-    planCard.style.display = "block";
+  if (plan.length === 0) {
+    planList.innerHTML =
+      "<li class='task-item'>No plan generated. Add more tasks!</li>";
+  } else {
+    plan.forEach((p) => {
+      const li = document.createElement("li");
+      li.className = "task-item";
+      li.style.borderLeftColor = "#7c3aed";
+      li.innerHTML = `
+                <div class="task-info">
+                    <b style="color:#7c3aed">Day ${p.day}: ${p.name}</b>
+                    <span>Priority: ${p.priority} | ${p.duration} hours</span>
+                </div>
+            `;
+      planList.appendChild(li);
+    });
+  }
+
+  planCard.scrollIntoView({ behavior: "smooth" });
 });
 
 loadTasks();
